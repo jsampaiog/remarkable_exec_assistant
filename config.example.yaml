@@ -1,0 +1,31 @@
+# reMarkable Executive Assistant — example configuration.
+# Copy to ~/.remarkable-ea/config.yaml (or set REMARKABLE_EA_CONFIG) and edit.
+#
+# Secrets are NOT stored here. They come from environment variables:
+#   ANTHROPIC_API_KEY    Claude API key
+#   GMAIL_APP_PASSWORD   Gmail app password (SMTP + IMAP)
+
+remarkable:
+  rmapi_path: /usr/local/bin/rmapi
+  notebooks:
+    - uuid: "REPLACE_WITH_NOTEBOOK_UUID"
+      name: "Daily Log"
+      type: "daily_log"      # one of: daily_log | meeting_notes | strategy | scratch
+    - uuid: "REPLACE_WITH_NOTEBOOK_UUID"
+      name: "Meetings"
+      type: "meeting_notes"
+
+claude:
+  model: "claude-sonnet-4-6"
+
+email:
+  smtp_host: "smtp.gmail.com"
+  smtp_port: 587
+  imap_host: "imap.gmail.com"
+  imap_port: 993
+  from: "jsampag@gmail.com"
+  to: "jose.sampaio@enovos.lu"
+
+storage:
+  db_path: "~/.remarkable-ea/state.db"
+  pages_dir: "~/.remarkable-ea/pages"

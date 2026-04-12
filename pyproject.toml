@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "remarkable-ea"
+version = "0.1.0"
+description = "reMarkable Executive Assistant: local service that extracts intelligence from handwritten notebooks and produces a daily digest email."
+# Spec targets 3.12; relaxed to 3.11 so the current build env can run tests.
+# Code is written to be compatible with both.
+requires-python = ">=3.11"
+dependencies = [
+    "anthropic>=0.40.0",
+    "click>=8.1.7",
+    "PyYAML>=6.0.1",
+    "ics>=0.7.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[project.scripts]
+remarkable-ea = "remarkable_ea.cli:cli"
+
+[tool.setuptools.packages.find]
+include = ["remarkable_ea*"]
+exclude = ["tests*"]

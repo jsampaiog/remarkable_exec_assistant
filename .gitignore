@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Envs
+.venv/
+venv/
+.env
+
+# Local state (runtime artifacts; db is rebuildable from page PNGs)
+*.db
+pages/
+.remarkable-ea/
+
+# User config (the committed one is config.example.yaml)
+config.yaml
+
+# Build
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
