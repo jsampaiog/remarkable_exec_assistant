@@ -19,7 +19,10 @@ import yaml
 
 @dataclass(frozen=True)
 class NotebookConfig:
-    uuid: str
+    # The rmapi path to the notebook, e.g. "/Notes/Daily Log". The spec
+    # describes this as a UUID, but rmapi's CLI is path-based and does not
+    # accept raw cloud UUIDs, so we store the path instead.
+    path: str
     name: str
     type: str  # daily_log | meeting_notes | strategy | scratch
 
@@ -71,7 +74,7 @@ def load_config(path: str | Path) -> Config:
 
     rm = raw["remarkable"]
     notebooks = tuple(
-        NotebookConfig(uuid=n["uuid"], name=n["name"], type=n["type"])
+        NotebookConfig(path=n["path"], name=n["name"], type=n["type"])
         for n in rm.get("notebooks", [])
     )
 

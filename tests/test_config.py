@@ -11,10 +11,10 @@ SAMPLE_CONFIG = """
 remarkable:
   rmapi_path: /usr/local/bin/rmapi
   notebooks:
-    - uuid: "abc-123"
+    - path: "/Notes/Daily Log"
       name: "Daily Log"
       type: "daily_log"
-    - uuid: "def-456"
+    - path: "/Notes/Meetings"
       name: "Meetings"
       type: "meeting_notes"
 
@@ -46,7 +46,7 @@ def test_load_config_parses_all_sections(tmp_path: Path) -> None:
 
     assert cfg.remarkable.rmapi_path == "/usr/local/bin/rmapi"
     assert len(cfg.remarkable.notebooks) == 2
-    assert cfg.remarkable.notebooks[0].uuid == "abc-123"
+    assert cfg.remarkable.notebooks[0].path == "/Notes/Daily Log"
     assert cfg.remarkable.notebooks[0].type == "daily_log"
     assert cfg.remarkable.notebooks[1].name == "Meetings"
 

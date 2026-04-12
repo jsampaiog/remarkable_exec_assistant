@@ -7,11 +7,13 @@
 
 remarkable:
   rmapi_path: /usr/local/bin/rmapi
+  # 'path' is the rmapi path to the notebook (use `rmapi ls` to list them).
+  # rmapi is path-based, not UUID-based, so these are filesystem-like paths.
   notebooks:
-    - uuid: "REPLACE_WITH_NOTEBOOK_UUID"
+    - path: "/Notes/Daily Log"
       name: "Daily Log"
       type: "daily_log"      # one of: daily_log | meeting_notes | strategy | scratch
-    - uuid: "REPLACE_WITH_NOTEBOOK_UUID"
+    - path: "/Notes/Meetings"
       name: "Meetings"
       type: "meeting_notes"
 
