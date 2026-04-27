@@ -18,8 +18,10 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import sqlite3
 import uuid
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 
 import anthropic
@@ -242,54 +244,107 @@ def _int_or_none(val) -> int | None:
         return None
 
 
+# ---------- persistence ----------
+
+def save_extraction(conn: sqlite3.Connection, ext: PageExtraction) -> bool:
+    """Persist a PageExtraction to the store.
+
+    Inserts the page row, all commitments (status='open'), and all meeting
+    proposals (status='pending') in a single transaction. If the page_id
+    already exists the call is a no-op (returns False).
+    """
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    try:
+        conn.execute(
+            "INSERT INTO pages(page_id, notebook, captured_date, summary, raw_json, extracted_at)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                ext.page_id,
+                ext.notebook,
+                ext.captured_date,
+                ext.summary,
+                extraction_to_json(ext),
+                now,
+            ),
+        )
+    except sqlite3.IntegrityError:
+        return False
+
+    for c in ext.commitments:
+        conn.execute(
+            "INSERT INTO commitments"
+            "(id, page_id, who, what, due, confidence, status, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, 'open', ?)",
+            (c.id, ext.page_id, c.who, c.what, c.due, c.confidence, now),
+        )
+    for m in ext.meetings_to_schedule:
+        conn.execute(
+            "INSERT INTO meetings_proposed"
+            "(id, page_id, with_whom, topic, proposed_when, duration_minutes, status, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)",
+            (
+                str(uuid.uuid4()),
+                ext.page_id,
+                m.with_whom,
+                m.topic,
+                m.proposed_when,
+                m.duration_minutes,
+                now,
+            ),
+        )
+    conn.commit()
+    return True
+
+
 # ---------- batch entry point (used by CLI / run_daily) ----------
 
 def run(cfg: Config) -> list[PageExtraction]:
-    """Extract all un-processed PNGs in the pages dir.
+    """Extract all un-processed PNGs and persist results to the store.
 
-    This is the batch entry point called by the CLI. It scans the pages dir,
-    skips pages already in the store, and processes the rest. Results are
-    NOT persisted here — that's store's job (wired in step 4).
-
-    Returns the list of new extractions.
+    Scans the pages dir, skips pages already in the store, calls Claude
+    vision on the rest, and saves each extraction immediately so partial
+    progress survives crashes.
     """
     from remarkable_ea.store import connect
 
     conn = connect(cfg.storage.db_path)
-    try:
-        existing_ids = {
-            row[0] for row in conn.execute("SELECT page_id FROM pages")
-        }
-    finally:
-        conn.close()
+    existing_ids = {
+        row[0] for row in conn.execute("SELECT page_id FROM pages")
+    }
 
     client = anthropic.Anthropic(api_key=anthropic_api_key())
     results: list[PageExtraction] = []
 
-    for notebook in cfg.remarkable.notebooks:
-        from remarkable_ea.sync import notebook_id
-        nb_dir = cfg.storage.pages_dir / notebook_id(notebook)
-        if not nb_dir.is_dir():
-            continue
-        for png in sorted(nb_dir.glob("*.png")):
-            page_id, captured_date = _parse_png_filename(png.stem)
-            if page_id in existing_ids:
-                log.debug("skip already-extracted %s", page_id)
+    try:
+        for notebook in cfg.remarkable.notebooks:
+            from remarkable_ea.sync import notebook_id
+
+            nb_dir = cfg.storage.pages_dir / notebook_id(notebook)
+            if not nb_dir.is_dir():
                 continue
-            log.info("extracting %s from %s", page_id, notebook.name)
-            try:
-                ext = extract_page(
-                    png_path=png,
-                    page_id=page_id,
-                    notebook_name=notebook.name,
-                    notebook_type=notebook.type,
-                    captured_date=captured_date,
-                    model=cfg.claude.model,
-                    client=client,
-                )
-                results.append(ext)
-            except Exception as exc:  # noqa: BLE001
-                log.error("extraction failed for %s: %s", png.name, exc)
+            for png in sorted(nb_dir.glob("*.png")):
+                page_id, captured_date = _parse_png_filename(png.stem)
+                if page_id in existing_ids:
+                    log.debug("skip already-extracted %s", page_id)
+                    continue
+                log.info("extracting %s from %s", page_id, notebook.name)
+                try:
+                    ext = extract_page(
+                        png_path=png,
+                        page_id=page_id,
+                        notebook_name=notebook.name,
+                        notebook_type=notebook.type,
+                        captured_date=captured_date,
+                        model=cfg.claude.model,
+                        client=client,
+                    )
+                    save_extraction(conn, ext)
+                    existing_ids.add(page_id)
+                    results.append(ext)
+                except Exception as exc:  # noqa: BLE001
+                    log.error("extraction failed for %s: %s", png.name, exc)
+    finally:
+        conn.close()
 
     return results
 
