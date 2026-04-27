@@ -55,12 +55,15 @@ def extract(ctx: click.Context) -> None:
 
 
 @cli.command()
+@click.option("--dry-run", is_flag=True, help="Build the digest but don't send it.")
 @click.pass_context
-def digest(ctx: click.Context) -> None:
+def digest(ctx: click.Context, dry_run: bool) -> None:
     """Generate and send the daily digest email."""
     from remarkable_ea import digest as digest_mod
 
-    digest_mod.run(_load(ctx))
+    body, mapping = digest_mod.run(_load(ctx), dry_run=dry_run)
+    if dry_run:
+        click.echo(body)
 
 
 @cli.command("ingest-replies")
